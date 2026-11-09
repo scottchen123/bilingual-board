@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bilingual Board · 双语聊天板</title>
+<style>
+:root{
+  --bg:#f6f3ee; --panel:#fffdf9; --ink:#1f2328; --muted:#6b6f76; --line:#e6e0d6;
+  --a:#0f766e; --a-soft:#e3f3f1; --b:#b45309; --b-soft:#fbeedd; --ok:#15803d; --ok-soft:#e7f6ec;
+  --scale:1; --radius:14px; color-scheme:light dark; accent-color:var(--a);
+  font-family:"Segoe UI","Microsoft YaHei","PingFang SC",system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#17181b; --panel:#202226; --ink:#e9e7e3; --muted:#9a9ea6; --line:#33363c;
+  --a:#3fbfb2; --a-soft:#1b3532; --b:#f0a352; --b-soft:#3a2b1b; --ok:#5fcf86; --ok-soft:#1c3324;}}
+*{box-sizing:border-box} html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-size:calc(15px*var(--scale))}
+button,select,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:.35em .7em}
+button:hover{border-color:var(--muted)}
+button.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.icon{border:none;background:none;padding:.2em .35em;border-radius:8px;opacity:.75}
+.icon:hover{opacity:1;background:var(--line)}
+.app{display:grid;grid-template-columns:260px 1fr;height:100vh}
+aside{border-right:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;min-height:0}
+.brand{padding:14px 16px 6px;font-weight:700;font-size:1.05em}
+.brand small{display:block;font-weight:400;color:var(--muted);font-size:.8em}
+.tabs{display:flex;gap:4px;padding:8px 12px}
+.tabs button{flex:1;font-size:.85em}
+.tabs button.on{background:var(--ink);color:var(--bg)}
+.side-list{overflow:auto;flex:1;padding:4px 8px 12px}
+.conv{padding:8px 10px;border-radius:10px;cursor:pointer;display:flex;justify-content:space-between;gap:6px}
+.conv:hover{background:var(--bg)} .conv.on{background:var(--a-soft)}
+.conv .t{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.conv .d{color:var(--muted);font-size:.78em}
+.side-foot{padding:10px 12px;border-top:1px solid var(--line);display:flex;gap:6px;flex-wrap:wrap}
+.vocab{padding:8px 10px;border-bottom:1px solid var(--line)}
+.vocab .en{font-weight:600} .vocab .zh{color:var(--muted)}
+main{display:flex;flex-direction:column;min-height:0;min-width:0}
+header{display:flex;align-items:center;gap:10px;padding:10px 18px;border-bottom:1px solid var(--line);background:var(--panel)}
+header h1{font-size:1.05em;margin:0;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:text}
+.pill{font-size:.75em;padding:.2em .6em;border-radius:99px;background:var(--bg);color:var(--muted);white-space:nowrap}
+.search{width:180px;padding:.35em .6em;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+#timeline{flex:1;overflow:auto;padding:18px 22px 8px}
+.day{text-align:center;margin:16px 0 8px;color:var(--muted);font-size:.8em}
+.day span{background:var(--bg);padding:0 10px;position:relative}
+.day:before{content:"";display:block;border-top:1px solid var(--line);position:relative;top:.7em}
+.gap{text-align:center;color:var(--muted);font-size:.72em;margin:6px 0}
+.msg{display:flex;margin:8px 0;gap:10px}
+.msg.B{flex-direction:row-reverse}
+.avatar{width:34px;height:34px;border-radius:50%;flex:none;display:grid;place-items:center;font-weight:700;color:#fff;font-size:.85em}
+.A .avatar{background:var(--a)} .B .avatar{background:var(--b)}
+/* cat illustrations (img/, cut by tools/board_cats.py): A = fawn cat 浅黄褐三花, B = lilac cat 丁香三花 */
+.avatar.cat{width:40px;height:40px;background:#fff;padding:0;box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--a)}
+.B .avatar.cat{box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--b)}
+.avatar.cat img{width:100%;height:100%;border-radius:50%;display:block}
+.brand{display:flex;align-items:flex-end;justify-content:space-between;gap:6px}
+.brand-cats{display:flex;align-items:flex-end;margin:-4px -6px -2px 0;flex:none}
+.brand-cats img{height:46px;display:block} .brand-cats img+img{margin-left:-14px;height:42px}
+.seg .face{width:1.6em;height:1.6em;border-radius:50%;margin-left:-.45em;display:block;opacity:.75}
+.seg button.on .face{opacity:1}
+.empty-cats{display:flex;justify-content:center;align-items:flex-end;gap:0;margin-bottom:14px}
+.empty-cats img{height:110px;display:block} .empty-cats img+img{margin-left:-30px}
+.empty-cat{height:80px;display:block;margin:0 auto 10px}
+@media (prefers-color-scheme:dark){.empty-cats img,.empty-cat,.brand-cats img{filter:brightness(.92)}}
+.bubble{max-width:min(680px,78%);background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:10px 14px}
+.A .bubble{border-top-left-radius:4px;border-left:3px solid var(--a)}
+.B .bubble{border-top-right-radius:4px;border-right:3px solid var(--b)}
+.meta{font-size:.75em;color:var(--muted);display:flex;gap:8px;margin-bottom:4px}
+.meta b{color:var(--ink)}
+.orig{font-size:1.12em;line-height:1.5;white-space:pre-wrap;word-wrap:break-word}
+.tr{margin-top:6px;padding-top:6px;border-top:1px dashed var(--line);color:var(--muted);line-height:1.45;white-space:pre-wrap}
+.tr.en{color:var(--ink);font-size:1.05em}
+.tr .lab{font-size:.72em;text-transform:uppercase;letter-spacing:.04em;margin-right:6px;opacity:.7}
+.tr.hidden .txt{filter:blur(5px);cursor:pointer;user-select:none}
+.tr.err{color:#b91c1c}
+.fix{margin-top:8px;background:var(--ok-soft);border-radius:10px;padding:6px 10px;color:var(--ok);line-height:1.45}
+.fix .lab{font-weight:700;font-size:.78em}
+.fix .orig-strike{color:var(--muted);text-decoration:line-through;font-size:.85em}
+.note{margin-top:6px;font-size:.85em;color:var(--muted);font-style:italic}
+.acts{margin-top:6px;display:flex;gap:2px;flex-wrap:wrap;opacity:.0;transition:opacity .15s}
+.msg:hover .acts,.msg:focus-within .acts{opacity:1}
+@media (hover:none){.acts{opacity:1}}
+.acts .icon{font-size:.85em}
+mark{background:#fde68a;color:#000;border-radius:3px}
+.empty{color:var(--muted);text-align:center;margin-top:12vh;line-height:1.8}
+.composer{border-top:1px solid var(--line);background:var(--panel);padding:10px 18px 14px}
+.who{display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+.seg{display:inline-flex;background:var(--bg);border:1px solid var(--line);border-radius:99px;padding:3px;gap:2px}
+.seg button{border:none;background:transparent;border-radius:99px;padding:.3em .9em;color:var(--muted);display:inline-flex;align-items:center;gap:.45em;transition:background .15s,color .15s}
+.seg button:hover{color:var(--ink)}
+.seg .dot{width:.55em;height:.55em;border-radius:50%;background:currentColor;opacity:.5}
+.seg .tag{font-size:.72em;opacity:.7}
+.who .seg button.on{color:var(--ink);font-weight:600}
+.who .seg button.on.A{background:var(--a-soft);box-shadow:inset 0 0 0 1px var(--a)} .who .seg button.on.A .dot{background:var(--a);opacity:1}
+.who .seg button.on.B{background:var(--b-soft);box-shadow:inset 0 0 0 1px var(--b)} .who .seg button.on.B .dot{background:var(--b);opacity:1}
+.seg.mini{padding:2px;align-self:center} .seg.mini button{padding:.25em .6em;font-size:.82em}
+.seg.mini button.on{background:var(--panel);color:var(--ink);font-weight:600;box-shadow:0 1px 2px #0002}
+.who .hint{color:var(--muted);font-size:.75em;margin-left:auto}
+.phrases{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:6px}
+.phrases button{flex:none;font-size:.8em;text-align:left;line-height:1.25}
+.phrases button small{display:block;color:var(--muted)}
+.row{display:flex;gap:8px;align-items:flex-end}
+.draft-wrap{position:relative;margin-bottom:8px}
+textarea{display:block;width:100%;resize:none;min-height:56px;max-height:70vh;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--bg);line-height:1.45}
+.grip{height:18px;margin:-10px -18px 4px;cursor:ns-resize;display:flex;align-items:center;justify-content:center;gap:8px;touch-action:none;user-select:none;color:var(--muted);font-size:.72em}
+.grip:before{content:"";width:56px;height:5px;border-radius:9px;background:var(--line);transition:background .15s,width .15s}
+.grip:hover:before,.grip.on:before{background:var(--a);width:90px}
+.grip span{opacity:.55;transition:opacity .15s} .grip:hover span,.grip.on span{opacity:1}
+.row .spacer{flex:1}
+*{scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+textarea:focus{outline:2px solid var(--a)} .speakB textarea:focus{outline-color:var(--b)}
+.preview{margin-top:8px;padding:8px 12px;border-radius:10px;background:var(--a-soft);display:none;gap:8px;align-items:center}
+.preview.show{display:flex} .preview .txt{flex:1}
+dialog{border:1px solid var(--line);border-radius:16px;background:var(--panel);color:var(--ink);max-width:520px;width:92vw}
+dialog::backdrop{background:#0006}
+dialog h2{margin:0 0 12px;font-size:1.1em}
+.field{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:10px 0}
+.field input[type=text],.field select{padding:.3em .5em;border:1px solid var(--line);border-radius:8px;background:var(--bg);width:200px}
+.dlg-acts{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;flex-wrap:wrap}
+.card{font-size:1.5em;text-align:center;padding:24px 8px;min-height:120px}
+.card .ans{margin-top:14px;color:var(--a);font-size:.85em}
+.edited{color:var(--muted);font-style:italic;cursor:help}
+.edit-box .edit-ta{width:100%;min-height:60px;resize:vertical;font-size:1.05em}
+.edit-acts{display:flex;gap:6px;justify-content:flex-end;align-items:center;margin-top:6px}
+.muted-s{color:var(--muted);font-size:.75em;margin-right:auto}
+.mk{cursor:pointer;border-radius:2px}
+.mk-u{text-decoration:underline;text-decoration-color:#2563eb;text-decoration-thickness:2px;text-underline-offset:3px}
+.mk-red{color:#dc2626;text-decoration:line-through;text-decoration-color:#dc2626;text-decoration-thickness:2px}
+.mk-ins{color:#dc2626;font-weight:600;margin-left:3px;font-family:"Segoe Print","Comic Sans MS","KaiTi",cursive;cursor:pointer}
+.mk-ins:before{content:"^";font-size:.8em;margin-right:1px}
+.mk-hl{background:#fde68a;color:#1f2328}
+.mk-good{background:#bbf7d0;color:#14532d;box-shadow:inset 0 -2px #16a34a}
+.mk-note{text-decoration:underline dotted #7c3aed 2px;text-underline-offset:4px}
+.mk-no{color:#7c3aed;font-weight:700;font-size:.7em;margin-left:1px;cursor:pointer}
+.mk-notes{margin:6px 0 0;padding-left:1.4em;font-size:.85em;color:#7c3aed}
+.mk-notes li::marker{font-weight:700}
+.mk-why{margin-top:6px} .mk-why summary{cursor:pointer;font-size:.82em;color:#7c3aed;user-select:none}
+.preview .txt{white-space:pre-wrap}
+.ai-box{border:1px solid var(--line);border-radius:12px;padding:4px 12px;margin:12px 0}
+.ai-box legend{font-weight:600;font-size:.9em;padding:0 6px}
+.ai{margin-top:8px;border-radius:10px;padding:6px 10px;background:#ede9fe;color:#4c1d95;line-height:1.45}
+.engine-q{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:10px;padding:.35em .6em;font-size:.85em;cursor:pointer;white-space:nowrap}
+.eng-wrap{position:relative}
+.eng-menu{display:none;position:absolute;right:0;bottom:calc(100% + 6px);z-index:7;width:min(340px,92vw);background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:0 10px 30px #0004;padding:6px}
+.eng-menu.show{display:block}
+.eng-head{font-size:.75em;color:var(--muted);padding:4px 8px 6px}
+.eng-item{display:flex;gap:10px;align-items:flex-start;width:100%;text-align:left;border:1px solid transparent;background:none;border-radius:10px;padding:8px 10px;color:var(--ink)}
+.eng-item:hover{background:var(--bg)} .eng-item.on{border-color:var(--a);background:var(--a-soft)}
+.eng-item b{font-size:.92em} .eng-item small{display:block;color:var(--muted);font-size:.8em;line-height:1.35;margin-top:2px}
+.eng-item .eng-en{font-size:.74em;opacity:.85} .eng-ic{font-size:1.3em;line-height:1.2} .eng-cur{font-size:.75em;color:var(--a);font-weight:600}
+.by{font-size:.72em;font-weight:400;opacity:.75;margin-left:6px;padding:0 6px;border-radius:99px;background:#8881;white-space:nowrap}
+.ai .lab{font-weight:700;font-size:.78em} .ai .fb{font-size:.88em;margin-top:3px;opacity:.9}
+.ai .scene{margin:0 0 4px;opacity:.75} .ai .pen{font-size:1.05em;line-height:1.7;margin:2px 0 6px;color:var(--ink)}
+.ai .pen .mk-red{color:#dc2626;text-decoration:line-through;text-decoration-thickness:2px}
+.ai .pen .mk-ins{cursor:help} .ai .mk-why{margin-top:4px}
+@media (prefers-color-scheme:dark){.ai{background:#2e2350;color:#ddd6fe}}
+.mk-notes b{color:var(--ink);font-weight:600}
+@media (prefers-color-scheme:dark){.mk-red,.mk-ins{color:#f87171}.mk-notes,.mk-no{color:#a78bfa}}
+.mtool{position:fixed;z-index:8;display:none;gap:2px;background:var(--ink);color:var(--bg);border-radius:12px;padding:4px;box-shadow:0 6px 24px #0004}
+.mtool.show{display:flex}
+.mtool button{border:none;background:transparent;color:inherit;border-radius:8px;padding:.35em .55em;font-size:.82em;white-space:nowrap}
+.mtool button:hover{background:#fff2}
+.mtool .sw{display:inline-block;width:.8em;height:.8em;border-radius:3px;vertical-align:-1px;margin-right:4px}
+.toast{position:fixed;bottom:110px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:10px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
+.toast.show{opacity:.95}
+header > *{flex-shrink:0} header h1{flex-shrink:1}
+@media (max-width:1050px){#stats{display:none} .search{width:130px}}
+@media (min-width:761px){#menuBtn{display:none}}
+@media (max-width:760px){.app{grid-template-columns:1fr} aside{display:none} aside.open{display:flex;position:fixed;inset:0 20% 0 0;z-index:5;box-shadow:0 0 40px #0005}
+  header{padding:8px 10px;gap:6px} .search{width:90px} #saveState{display:none} #timeline{padding:12px 10px}
+  .bubble{max-width:84%} .who .hint{display:none}}
+</style>
+<script src="vendor/pinyin-pro.js"></script><!-- pinyin for Chinese text (MIT, pinyin-pro 3.29.5) -->
+</head>
+<body>
+<div class="app">
+  <aside id="side">
+    <div class="brand"><div>Bilingual Board<small>双语聊天板 · learn while you talk</small></div><div class="brand-cats" aria-hidden="true"><img src="img/fawn-step.png" alt=""><img src="img/lilac-step.png" alt=""></div></div>
+    <div class="tabs">
+      <button id="tabChats" class="on">Chats 对话</button>
+      <button id="tabVocab">Vocab 生词</button>
+    </div>
+    <div class="side-list" id="sideList"></div>
+    <div class="side-foot" id="sideFoot"></div>
+  </aside>
+  <main id="main">
+    <header>
+      <button class="icon" id="menuBtn" title="Menu" aria-label="Menu">☰</button>
+      <h1 id="title" title="Click to rename · 点击重命名"></h1>
+      <span class="pill" id="stats"></span>
+      <span class="pill" id="saveState">…</span>
+      <input class="search" id="search" placeholder="Search 搜索…" aria-label="Search">
+      <button class="icon" id="settingsBtn" title="Settings 设置" aria-label="Settings">⚙️</button>
+    </header>
+    <div id="timeline" aria-live="polite"></div>
+    <div class="composer" id="composer">
+      <div class="grip" id="grip" title="Drag up/down to resize the input box 上下拖动调整输入框高度" role="separator" aria-orientation="horizontal"><span>↕ drag 拖动</span></div>
+      <div class="who" id="who"></div>
+      <div class="phrases" id="phrases"></div>
+      <div class="draft-wrap">
+        <textarea id="draft" rows="2" placeholder="Type in English or 中文… (Enter = send, Shift+Enter = new line)"></textarea>
+      </div>
+      <div class="row">
+        <div class="seg mini" id="micLang" role="group" title="Voice input language 语音输入语言" aria-label="Voice language"><button type="button" data-ml="en-US">EN</button><button type="button" data-ml="zh-CN">中</button></div>
+        <button id="micBtn" title="Voice input 语音输入" aria-label="Voice input">🎤</button>
+        <button id="expandBtn" type="button" title="Bigger / smaller input box 放大/缩小输入框">⤢ Bigger 放大</button>
+        <span class="spacer"></span>
+        <div class="eng-wrap"><button type="button" id="engineBtn" class="engine-q" aria-haspopup="menu" aria-expanded="false" title="Which checker 用哪个批改引擎"></button>
+          <div class="eng-menu" id="engineMenu" role="menu"></div></div>
+        <button id="checkBtn" title="Check my English before sending · 发送前检查语法">✍️ Check 检查</button>
+        <button id="helpBtn" title="Translate my draft into English · 帮我说成英文">中→EN</button>
+        <button id="zhBtn" title="How to say my message in Chinese (with pinyin) · 用中文怎么说">EN→中</button>
+        <button id="sendBtn" class="primary">Send</button>
+      </div>
+      <div class="preview" id="preview"><span id="previewFlag">🇬🇧</span><span class="txt" id="previewTxt"></span>
+        <button class="icon" id="previewSpeak" title="Listen">🔊</button>
+        <button id="previewUse">Use this 用这句</button><button class="icon" id="previewClose">✕</button></div>
+    </div>
+  </main>
+</div>
+
+<dialog id="settingsDlg"><form method="dialog">
+  <h2>Settings · 设置</h2>
+  <div class="field"><label for="sNameA">Person A name (中文母语)</label><input type="text" id="sNameA"></div>
+  <div class="field"><label for="sNameB">Person B name (English native)</label><input type="text" id="sNameB"></div>
+  <div class="field"><label for="sCityB">Person B city (this computer's time)<br><small>B 所在城市，消息时间旁显示</small></label><input type="text" id="sCityB"></div>
+  <div class="field"><label for="sHide">Blur Chinese translations until tapped<br><small>学习模式：先读英文，点一下再看中文</small></label><input type="checkbox" id="sHide"></div>
+  <div class="field"><label for="sGrammar">Auto-check grammar of Person A's English<br><small>自动检查 A 发出的英文语法（LanguageTool 在线服务）</small></label><input type="checkbox" id="sGrammar"></div>
+  <fieldset class="ai-box"><legend>✍️ Grammar checker · 批改引擎</legend>
+    <div class="field"><label for="sGEngine">Checker 引擎</label>
+      <select id="sGEngine"><option value="local">🐱 Qwen3 4B · 本地免费模型（看场景改地道，每句约 20 秒）</option><option value="lt">Free · LanguageTool（免费，只查拼写语法）</option><option value="claude">🤖 Claude AI（付费，会改通顺/地道）</option></select></div>
+    <div class="field"><label for="sModel">Claude model 模型</label><select id="sModel">
+      <option value="claude-opus-5-5">Opus 5.5 — best 最好 (≈$0.01–0.02/次)</option>
+      <option value="claude-sonnet-5-5">Sonnet 5.5 — balanced 均衡 (≈$0.005–0.01/次)</option>
+      <option value="claude-haiku-5-5">Haiku 5.5 — cheapest 最便宜 (≈$0.0005/次)</option></select></div>
+    <div class="field"><label for="sKey">Anthropic API key<br><small>只存在这台电脑的 data 文件夹，不会进浏览器</small></label>
+      <span style="display:flex;gap:6px"><input type="password" id="sKey" placeholder="sk-ant-…" autocomplete="off" style="width:150px;padding:.3em .5em;border:1px solid var(--line);border-radius:8px;background:var(--bg)"><button type="button" id="saveKey">Save 保存</button></span></div>
+    <div class="field"><small id="claudeStatus" style="color:var(--muted)"></small><button type="button" id="clearKey" class="icon" title="Remove key 删除 key">🗑</button></div>
+  </fieldset>
+  <div class="field"><label for="sSwitch">Switch speaker after each message<br><small>发送后自动切换说话人</small></label><input type="checkbox" id="sSwitch"></div>
+  <div class="field"><label for="sEngine">Translation engine 翻译引擎</label>
+    <select id="sEngine"><option value="auto">Auto (on-device first)</option><option value="chrome">Chrome on-device only</option><option value="mymemory">MyMemory (online)</option><option value="off">Off 关闭</option></select></div>
+  <div class="field"><small id="engineStatus" style="color:var(--muted)"></small></div>
+  <div class="field"><label for="sRate">Speech speed 朗读语速</label><input type="range" id="sRate" min="0.5" max="1.3" step="0.05"></div>
+  <div class="field"><label for="sScale">Text size 字号</label><input type="range" id="sScale" min="0.85" max="1.6" step="0.05"></div>
+  <div class="dlg-acts">
+    <button type="button" id="exportMd">Export chat (.md)</button>
+    <button type="button" id="exportJson">Backup all (.json)</button>
+    <button type="button" id="importJson">Restore (.json)</button>
+    <button value="close" class="primary">Done</button>
+  </div>
+  <input type="file" id="importFile" accept=".json" hidden>
+</form></dialog>
+
+<dialog id="quizDlg"><form method="dialog">
+  <h2>Vocab practice · 生词练习</h2>
+  <div class="card" id="card"></div>
+  <div class="dlg-acts"><button type="button" id="cardSpeak">🔊</button><button type="button" id="cardFlip">Show answer 看答案</button><button type="button" id="cardNext">Next 下一个</button><button value="close" class="primary">Close</button></div>
+</form></dialog>
+
+<div class="mtool" id="mtool" role="toolbar" aria-label="Mark selected text"></div>
+<div class="toast" id="toast"></div>
+
+<script src="merge.cjs"></script>
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const isZh = t => { const cjk = (t.match(/[㐀-鿿豈-﫿]/g) || []).length; const lat = (t.match(/[A-Za-z]/g) || []).length; return cjk > 0 && cjk * 2 >= lat * 0.5; };
+const KEY = 'bilingual-board-v1';
+
+// ---------- state ----------
+function freshState() {
+  const c = newConv();
+  return { version: 1, updatedAt: 0, deleted: [], // updatedAt 0: a brand-new browser never counts as "newer"
+    settings: { nameA: 'Me', nameB: 'Partner', hideZh: true, autoSwitch: true, autoGrammar: true, gEngine: 'local', aiModel: 'claude-opus-5-5', engine: 'auto', rate: 0.85, scale: 1 },
+    conversations: [c], activeId: c.id, vocab: [], speaker: 'A' };
+}
+function newConv(title) { const d = new Date(); return { id: uid(), title: title || 'Chat ' + d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ', ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }), created: Date.now(), messages: [] }; }
+let S = (() => { try { return JSON.parse(localStorage.getItem(KEY)) || freshState(); } catch { return freshState(); } })();
+S.settings = Object.assign(freshState().settings, S.settings);
+const conv = () => S.conversations.find(c => c.id === S.activeId) || S.conversations[0];
+function markDeleted(id) { (S.deleted ||= []).push(id); }
+
+let serverOK = false, serverEverOK = false, saveTimer;
+function save() {
+  S.updatedAt = Date.now();
+  localStorage.setItem(KEY, JSON.stringify(S));
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(pushServer, 600);
+  setSaveState(serverOK ? 'Saving…' : 'Saved in browser');
+}
+async function pushServer() {
+  if (!serverOK) return;
+  try { const r = await fetch('/api/state', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(S) });
+    if (!r.ok) throw 0; setSaveState('Saved to data/ ✓'); }
+  catch { serverOK = false; setSaveState('⚠ Server off — run start.bat'); }
+}
+function setSaveState(t) {
+  const el = $('#saveState'); el.textContent = t;
+  el.title = t.startsWith('⚠') ? 'Not saved to the data folder. Start the board with start.bat (Windows) or start.command (Mac) — it will sync automatically.\n没有存到 data 文件夹。双击 start.bat（Windows）或 start.command（Mac）启动后会自动同步。' : '';
+  el.style.color = t.startsWith('⚠') ? '#dc2626' : '';
+}
+// If the server was stopped, keep trying to reconnect; once back, newer browser data is pushed to data/.
+if (location.protocol !== 'file:') setInterval(() => { if (!serverOK) pullServer(); }, 10000);
+async function pullServer() {
+  if (location.protocol === 'file:') { setSaveState('Saved in browser'); return; }
+  try {
+    const r = await fetch('/api/state'); if (!r.ok) throw 0;
+    serverOK = serverEverOK = true; const remote = await r.json();
+    // merge, never replace: keeps chats from both this browser and the saved file
+    if (remote && Array.isArray(remote.conversations)) {
+      const before = countMessages(S);
+      S = mergeBoard(S, remote); S.settings = Object.assign(freshState().settings, S.settings);
+      localStorage.setItem(KEY, JSON.stringify(S));
+      if (countMessages(S) !== before || !S.conversations.some(c => c.id === S.activeId)) renderAll();
+    }
+    pushServer();
+    setSaveState('Saved to data/ ✓');
+  } catch { setSaveState(serverEverOK ? '⚠ Server off — run start.bat' : 'Saved in browser'); }
+}
+
+// ---------- translation ----------
+const trCache = new Map(); const chromeTr = {}; let chromeBroken = false;
+const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
+async function chromeTranslate(text, from, to) {
+  if (!('Translator' in self) || chromeBroken) return null;
+  const k = from + '>' + to;
+  try {
+    if (!chromeTr[k]) {
+      const a = await withTimeout(Translator.availability({ sourceLanguage: from, targetLanguage: to }), 3000);
+      if (a === 'unavailable') return null;
+      chromeTr[k] = await withTimeout(Translator.create({ sourceLanguage: from, targetLanguage: to }), a === 'available' ? 5000 : 60000);
+    }
+    return await withTimeout(chromeTr[k].translate(text), 8000);
+  } catch (e) { delete chromeTr[k]; if (e.message === 'timeout') chromeBroken = true; return null; }
+}
+function chunks(text, max = 450) {
+  const parts = text.match(/[^.!?。！？\n]+[.!?。！？\n]*/g) || [text]; const out = []; let cur = '';
+  for (const p of parts) { if ((cur + p).length > max && cur) { out.push(cur); cur = ''; } cur += p; }
+  if (cur) out.push(cur); return out.flatMap(c => c.length > max ? c.match(new RegExp('.{1,' + max + '}', 'gs')) : [c]);
+}
+async function myMemory(text, from, to) {
+  const lp = (from === 'zh' ? 'zh-CN' : 'en-US') + '|' + (to === 'zh' ? 'zh-CN' : 'en-US');
+  const res = [];
+  for (const c of chunks(text)) {
+    const r = await fetch('https://api.mymemory.translated.net/get?q=' + encodeURIComponent(c) + '&langpair=' + lp, { signal: AbortSignal.timeout(10000) });
+    const j = await r.json(); const t = j?.responseData?.translatedText;
+    if (!t || j.responseStatus != 200 || /MYMEMORY WARNING|QUERY LENGTH LIMIT/i.test(t)) return null;
+    res.push(t.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&'));
+  }
+  return res.join(from === 'en' ? '' : ' ');
+}
+async function translate(text, from, to) {
+  const e = S.settings.engine; if (e === 'off' || !text.trim()) return null;
+  const k = from + to + text; if (trCache.has(k)) return trCache.get(k);
+  let out = null;
+  if (e === 'auto' || e === 'chrome') out = await chromeTranslate(text, from, to);
+  if (!out && (e === 'auto' || e === 'mymemory')) { try { out = await myMemory(text, from, to); } catch { out = null; } }
+  if (out) trCache.set(k, out);
+  return out;
+}
+async function engineStatus() {
+  let s = 'Chrome on-device translator: ';
+  if (!('Translator' in self)) s += 'not supported in this browser (use Chrome 138+). ';
+  else { try { s += await withTimeout(Translator.availability({ sourceLanguage: 'zh', targetLanguage: 'en' }), 3000); } catch { s += 'not responding (will use MyMemory)'; } s += '. '; }
+  s += 'MyMemory: online, free, ~5000 chars/day — text is sent to their server.';
+  $('#engineStatus').textContent = s;
+}
+
+// ---------- grammar check (LanguageTool free public API: spelling, grammar, punctuation) ----------
+async function grammarCheck(text) {
+  const body = new URLSearchParams({ text, language: 'en-US', motherTongue: 'zh-CN' });
+  const r = await fetch('https://api.languagetool.org/v2/check', { method: 'POST', body, signal: AbortSignal.timeout(15000) });
+  if (!r.ok) throw new Error(r.status === 429 ? 'Too many checks — wait a minute 请稍等一分钟' : 'Grammar service error ' + r.status);
+  const j = await r.json();
+  // ignore anything touching Chinese text (mixed messages like "…? 我这句这么写可以吗?")
+  return j.matches.filter(x => !/[㐀-鿿]/.test(text.slice(x.offset, x.offset + x.length)))
+    .map(x => ({ start: x.offset, end: x.offset + x.length, fix: x.replacements[0]?.value ?? null, msg: x.shortMessage || x.message, long: x.message, type: x.rule?.issueType }));
+}
+function applyFixes(text, issues) {
+  let out = text;
+  for (const i of [...issues].filter(i => i.fix !== null).sort((a, b) => b.start - a.start)) out = out.slice(0, i.start) + i.fix + out.slice(i.end);
+  return out;
+}
+const GRAMMAR_ZH = { 'Possible spelling mistake found.': '拼写可能有误', 'This sentence does not start with an uppercase letter.': '句首要大写',
+  'The personal pronoun “I” should be uppercase.': '"I"（我）要大写', 'Put a space after the comma, but not before the comma.': '逗号前不要空格，逗号后加空格',
+  'A determiner may be missing.': '可能缺少冠词/限定词（如 the / a）' };
+async function explainZh(msg) { return GRAMMAR_ZH[msg] || (msg.startsWith('Use “an”') ? '元音音素开头的词前用 an，不用 a' : (await translate(msg, 'en', 'zh')) || ''); }
+
+// ----- Claude AI check (through the local server, which holds the API key) -----
+// 'claude' (paid API) and 'local' (free model on this PC, local.mjs) give the same kind of answer
+const useClaude = () => S.settings.gEngine === 'claude' || S.settings.gEngine === 'local';
+async function claudeCheck(text, context) {
+  if (!serverOK) throw new Error('The AI check needs the server — run start.bat 需要先运行 start.bat');
+  const r = await fetch(S.settings.gEngine === 'local' ? '/api/local/check' : '/api/claude/check', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text, model: S.settings.aiModel, context: context || [] }) });
+  const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'HTTP ' + r.status);
+  return j; // { model, usd, result: { scene_zh, corrected, edits[], natural, natural_edits[], feedback_zh, level } }
+}
+// The last few messages before `m` (or the end of the chat), so Claude can tell the scene and tone.
+function chatContext(m) {
+  const c = S.conversations.find(c => c.messages.includes(m)) || conv();
+  const i = m ? c.messages.indexOf(m) : c.messages.length;
+  return c.messages.slice(Math.max(0, i - 8), i).map(x => ({ who: nameOf(x.speaker), learner: x.speaker === 'A',
+    text: x.lang === 'zh' && x.tr ? `${x.text} (= ${x.tr})` : x.text }));
+}
+// Red-pen line: the learner's words struck through, the better words written after them.
+function redPenHTML(text, marks) {
+  let out = '', at = 0;
+  for (const k of [...marks].sort((a, b) => a.start - b.start)) {
+    out += esc(text.slice(at, k.start));
+    const same = (k.fix || '').trim() === text.slice(k.start, k.end).trim();
+    out += same ? esc(text.slice(k.start, k.end)) : `<span class="mk-red" title="${esc(k.note || '')}">${esc(text.slice(k.start, k.end))}</span>` + (k.fix ? `<span class="mk-ins" title="${esc(k.note || '')}">${esc(k.fix)}</span>` : '');
+    at = k.end;
+  }
+  return out + esc(text.slice(at));
+}
+async function claudeStatus() {
+  const el = $('#claudeStatus');
+  if (!serverOK) { el.textContent = '⚠ Run start.bat to use Claude. 需要先运行 start.bat'; return; }
+  try { const s = await (await fetch('/api/claude/status')).json();
+    el.textContent = (s.hasKey ? `✓ Key saved ${s.keyHint || ''}` : '✗ No key yet 还没有 key') + ` · ${s.usage.checks} checks, ≈ $${s.usage.usd.toFixed(3)} spent 已花费`; }
+  catch { el.textContent = 'Could not reach the server.'; }
+}
+$('#saveKey').onclick = async () => {
+  const key = $('#sKey').value.trim(); if (!key) return toast('Paste your key first 先粘贴 key');
+  try { const r = await fetch('/api/claude/key', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ key }) });
+    const j = await r.json(); if (!r.ok) throw new Error(j.error); $('#sKey').value = ''; toast('Key saved 已保存');
+    S.settings.gEngine = 'claude'; $('#sGEngine').value = 'claude'; save(); claudeStatus(); }
+  catch (e) { toast(e.message || 'Could not save key'); }
+};
+$('#clearKey').onclick = async () => {
+  if (!confirm('Remove the saved API key? 删除已保存的 key？')) return;
+  await fetch('/api/claude/key', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ key: '' }) }).catch(() => {});
+  S.settings.gEngine = 'lt'; $('#sGEngine').value = 'lt'; save(); claudeStatus(); toast('Key removed 已删除');
+};
+// Place each Claude edit on the exact words of the message (in reading order).
+function claudeMarks(text, edits) {
+  const marks = [], unplaced = []; let from = 0;
+  for (const e of edits) {
+    const o = (e.original || '').trim(); if (!o) { unplaced.push(e); continue; }
+    let i = text.indexOf(o, from); if (i < 0) i = text.toLowerCase().indexOf(o.toLowerCase());
+    if (i < 0 || marks.some(k => i < k.end && i + o.length > k.start)) { unplaced.push(e); continue; }
+    marks.push({ id: uid(), start: i, end: i + o.length, type: 'red', fix: e.fix, note: e.why_en + (e.why_zh ? ' · ' + e.why_zh : ''), by: 'auto', ts: Date.now() });
+    from = i + o.length;
+  }
+  return { marks, unplaced };
+}
+async function checkMessage(m, quiet) {
+  const en = m.text; m.checking = true; rerenderMsg(m);
+  if (useClaude()) {
+    try {
+      const { result: res, model, usd } = await claudeCheck(en, chatContext(m));
+      const { marks, unplaced } = claudeMarks(en, res.edits || []);
+      m.marks = [...(m.marks || []).filter(k => k.by !== 'auto'), ...marks];
+      m.corrected = res.level === 'good' ? '' : res.corrected;
+      const nat = claudeMarks(en, (res.natural_edits || []).filter(e => (e.fix || '').trim() !== (e.original || '').trim()));
+      m.ai = { natural: res.natural, scene: res.scene_zh, feedback: res.feedback_zh, level: res.level, model, usd, unplaced,
+        natMarks: nat.marks.map(k => ({ start: k.start, end: k.end, fix: k.fix, note: k.note })), natUnplaced: nat.unplaced };
+      m.checked = Date.now(); m.checkedBy = S.settings.gEngine;
+      if (!quiet || res.level !== 'good') toast(res.level === 'good' ? '✓ Great English! 写得很好' : `🤖 ${(res.edits || []).length} correction(s) 处批改`);
+    } catch (e) { toast((S.settings.gEngine === 'local' ? 'Qwen3 4B: ' : 'Claude: ') + e.message); }
+    m.checking = false; save(); rerenderMsg(m); return;
+  }
+  try {
+    const issues = await grammarCheck(en);
+    delete m.ai;
+    m.marks = (m.marks || []).filter(k => k.by !== 'auto'); // replace earlier automatic marks
+    for (const i of issues) {
+      const zh = await explainZh(i.long);
+      m.marks.push({ id: uid(), start: i.start, end: i.end, type: i.fix !== null ? 'red' : 'note', fix: i.fix ?? undefined, note: i.long + (zh ? ' · ' + zh : ''), by: 'auto', ts: Date.now() });
+    }
+    // corrected sentence: English lines only (drop lines like "我这句这么写可以吗?")
+    m.corrected = issues.some(i => i.fix !== null) ? applyFixes(en, issues).split('\n').filter(l => l.trim() && !isZh(l)).join('\n') : '';
+    m.checked = Date.now(); m.checkedBy = 'lt';
+    if (!quiet || issues.length) toast(issues.length ? `✍️ ${issues.length} suggestion(s) 处建议` : '✓ No problems found 没发现问题');
+  } catch (e) { if (!quiet) toast('Grammar check failed: ' + e.message); }
+  m.checking = false; save(); rerenderMsg(m);
+}
+async function checkDraft() {
+  const text = $('#draft').value.trim(); if (!text) return toast('Type some English first 先输入英文');
+  if (isZh(text)) return helpSayIt();
+  $('#previewTxt').textContent = 'checking… 检查中'; $('#preview').classList.add('show');
+  if (useClaude()) {
+    try { const { result: r } = await claudeCheck(text, chatContext(null));
+      const scene = r.scene_zh ? `🎬 ${r.scene_zh}\n` : '';
+      const natWhy = (r.natural_edits || []).filter(e => e.fix.trim() !== e.original.trim()).slice(0, 4).map(e => `“${e.original}” → “${e.fix}”: ${e.why_zh || e.why_en}`).join('\n');
+      if (r.level === 'good' && r.natural.trim() === text.trim()) return showPreview(scene + '✓ Great English! 写得很好 — ' + text, null);
+      const why = (r.edits || []).slice(0, 4).map(e => `“${e.original}” → “${e.fix}”: ${e.why_zh || e.why_en}`).join('\n');
+      showPreview(`${scene}🤖 This moment 这个场景这样说: ${r.natural}\n${natWhy}` + (r.level !== 'good' ? `\n✔ Just the mistakes 只改错: ${r.corrected}\n${why}` : '') + `\n${r.feedback_zh}`, r.natural);
+    } catch (e) { showPreview('Check failed: ' + e.message, null); }
+    return;
+  }
+  try {
+    const issues = await grammarCheck(text);
+    if (!issues.length) { showPreview('✓ Looks good! 没发现问题 — ' + text, null); return; }
+    const fixed = applyFixes(text, issues);
+    const list = [...new Set(await Promise.all(issues.map(async i => i.msg + (GRAMMAR_ZH[i.long] ? '（' + GRAMMAR_ZH[i.long] + '）' : ''))))].slice(0, 4).join('；');
+    showPreview(fixed + '\n— ' + list, fixed);
+  } catch (e) { showPreview('Check failed: ' + e.message, null); }
+}
+
+// ---------- speech ----------
+function speak(text, lang) {
+  if (!('speechSynthesis' in self)) return toast('Speech not supported');
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text); u.lang = lang === 'zh' ? 'zh-CN' : 'en-US'; u.rate = S.settings.rate;
+  const v = speechSynthesis.getVoices().find(v => v.lang.replace('_', '-').startsWith(u.lang.slice(0, 2)) && /natural|online|google/i.test(v.name))
+    || speechSynthesis.getVoices().find(v => v.lang.replace('_', '-').startsWith(u.lang.slice(0, 2)));
+  if (v) u.voice = v; speechSynthesis.speak(u);
+}
+let rec = null, micLang = 'en-US';
+function setMicLang(l) { micLang = l; document.querySelectorAll('#micLang [data-ml]').forEach(b => { b.classList.toggle('on', b.dataset.ml === l); b.setAttribute('aria-pressed', b.dataset.ml === l); }); }
+function toggleMic() {
+  const SR = self.SpeechRecognition || self.webkitSpeechRecognition;
+  if (!SR) return toast('Voice input needs Chrome or Edge');
+  if (rec) { rec.stop(); return; }
+  rec = new SR(); rec.lang = micLang; rec.interimResults = true; rec.continuous = false;
+  const base = $('#draft').value ? $('#draft').value + ' ' : '';
+  rec.onresult = e => { $('#draft').value = base + [...e.results].map(r => r[0].transcript).join(''); autoGrow(); };
+  rec.onend = () => { rec = null; $('#micBtn').textContent = '🎤'; };
+  rec.onerror = e => toast('Mic: ' + e.error);
+  rec.start(); $('#micBtn').textContent = '⏺';
+}
+
+// ---------- helpers ----------
+function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('show'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 1800); }
+const nameOf = sp => sp === 'A' ? S.settings.nameA : S.settings.nameB;
+const dayLabel = ts => { const d = new Date(ts), t = new Date(); const y = new Date(); y.setDate(t.getDate() - 1);
+  if (d.toDateString() === t.toDateString()) return 'Today · 今天'; if (d.toDateString() === y.toDateString()) return 'Yesterday · 昨天';
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }); };
+// Person A lives in Guangzhou (China time); Person B uses this computer's own clock.
+const GZ_TZ = 'Asia/Shanghai';
+const clockOf = (ts, tz) => new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', ...(tz ? { timeZone: tz } : {}) });
+const timeLabel = (ts, sp) => sp === 'A' ? clockOf(ts, GZ_TZ) + ' 广州' : clockOf(ts) + ' ' + (S.settings.cityB || 'Rijswijk');
+const timeTip = (ts, sp) => sp === 'A' ? (S.settings.cityB || 'Rijswijk') + ': ' + clockOf(ts) : 'Guangzhou 广州: ' + clockOf(ts, GZ_TZ);
+function highlight(text, q) { const t = esc(text); if (!q) return t; const re = new RegExp(esc(q).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'); return t.replace(re, m => '<mark>' + m + '</mark>'); }
+
+const PHRASES = {
+  A: [['Sorry, could you say that again more slowly?', '抱歉，能再慢一点说一遍吗？'], ['What does "___" mean?', '"___" 是什么意思？'], ['How do you say "___" in English?', '"___" 用英语怎么说？'],
+      ['Did I say that correctly?', '我这样说对吗？'], ['Please correct my English.', '请帮我纠正英语。'], ['Let me think for a moment.', '让我想一下。'], ['I mean…', '我的意思是……'], ['Got it, thanks!', '明白了，谢谢！']],
+  B: [['Take your time.', '慢慢来，不着急。'], ['Do you mean…?', '你是说……吗？'], ['A more natural way to say it is:', '更自然的说法是：'], ['Great sentence!', '这句说得很好！'],
+      ['Let me say it another way.', '我换个说法。'], ['Can you tell me in Chinese?', '你能用中文告诉我吗？'], ['How do you say this in Chinese?', '这个用中文怎么说？']]
+};
+
+// ---------- rendering ----------
+let query = '', sideTab = 'chats';
+// which checker made a correction (shown as a small tag), and the one the Check button uses now
+const ENGINE_LABEL = { lt: 'LanguageTool · 只查拼写语法', local: '🐱 Qwen3 4B · 本地模型', claude: '🤖 Claude' };
+const byTag = m => m.checkedBy ? `<span class="by" title="Checked by 批改引擎">by ${ENGINE_LABEL[m.checkedBy] || m.checkedBy}</span>` : '';
+// The three checkers, with what makes each different (shown in the bottom-right menu)
+const ENGINES = [
+  { id: 'local', icon: '🐱', short: '本地 Qwen', name: 'Qwen3 4B · 本地模型', zh: '免费 · 看聊天场景，改成地道说法，有中文解释', en: 'Free · on this PC · reads the scene · ~20 s' },
+  { id: 'lt', icon: '🔤', short: '拼写检查', name: 'LanguageTool · 拼写检查', zh: '免费 · 只查拼写和基本语法，不懂场景，常改错', en: 'Free · online · spelling & grammar only · fast' },
+  { id: 'claude', icon: '🤖', short: 'Claude', name: 'Claude · 最准', zh: '最准最地道 · 要 API key，每句约 1–2 美分', en: 'Best · paid API key · ~5 s' },
+];
+function renderEngineMenu() {
+  const e = S.settings.gEngine, cur = ENGINES.find(x => x.id === e) || ENGINES[0];
+  $('#engineBtn').innerHTML = `${cur.icon} ${cur.short} <span style="opacity:.6">▾</span>`;
+  $('#engineMenu').innerHTML = '<div class="eng-head">Checker 批改引擎</div>' + ENGINES.map(x => `<button type="button" role="menuitemradio" aria-checked="${x.id === e}" class="eng-item ${x.id === e ? 'on' : ''}" data-eng="${x.id}">
+    <span class="eng-ic">${x.icon}</span><span><b>${x.name}</b>${x.id === e ? ' <span class="eng-cur">✓ 正在用</span>' : ''}<small>${x.zh}</small><small class="eng-en">${x.en}</small></span></button>`).join('');
+}
+function renderCheckBtn() { const e = S.settings.gEngine; renderEngineMenu();
+  $('#checkBtn').title = 'Check my English before sending · 发送前检查语法 — checker 引擎: ' + (ENGINE_LABEL[e] || e) + '（⚙️ 设置里切换）'; }
+function renderAll() { renderCheckBtn(); document.documentElement.style.setProperty('--scale', S.settings.scale); renderSide(); renderHeader(); renderTimeline(); renderComposer(); }
+function renderHeader() {
+  const c = conv(); $('#title').textContent = c.title;
+  const today = new Date().toDateString();
+  const n = S.conversations.flatMap(c => c.messages).filter(m => m.speaker === 'A' && m.lang === 'en' && new Date(m.ts).toDateString() === today).length;
+  $('#stats').textContent = `${S.settings.nameA}: ${n} English msg today · 今天英文 ${n} 句`;
+}
+function renderSide() {
+  $('#tabChats').classList.toggle('on', sideTab === 'chats'); $('#tabVocab').classList.toggle('on', sideTab === 'vocab');
+  const L = $('#sideList'), F = $('#sideFoot');
+  if (sideTab === 'chats') {
+    L.innerHTML = [...S.conversations].sort((a, b) => (b.messages.at(-1)?.ts || b.created) - (a.messages.at(-1)?.ts || a.created)).map(c =>
+      `<div class="conv ${c.id === S.activeId ? 'on' : ''}" data-id="${c.id}"><div style="min-width:0"><div class="t">${esc(c.title)}</div>
+       <div class="d">${c.messages.length} msgs · ${dayLabel(c.messages.at(-1)?.ts || c.created)}</div></div>
+       <button class="icon" data-del="${c.id}" title="Delete chat">🗑</button></div>`).join('');
+    F.innerHTML = `<button id="newConv" class="primary" style="flex:1">+ New chat 新对话</button>`;
+    $('#newConv').onclick = () => { const c = newConv(); S.conversations.push(c); S.activeId = c.id; save(); renderAll(); $('#draft').focus(); };
+  } else {
+    L.innerHTML = S.vocab.length ? [...S.vocab].reverse().map(v => `<div class="vocab"><div class="en">${esc(v.en)} <button class="icon" data-say="${v.id}">🔊</button><button class="icon" data-vdel="${v.id}">✕</button></div><div class="zh">${esc(v.zh || '')}</div></div>`).join('')
+      : `<div class="empty" style="margin-top:20px"><img class="empty-cat" src="img/lilac-crouch.png" alt="" style="height:60px">No words yet.<br>Select text in a message and press ⭐<br>选中消息里的词，点 ⭐ 收藏</div>`;
+    F.innerHTML = `<button id="quizBtn" class="primary" style="flex:1" ${S.vocab.length ? '' : 'disabled'}>Practice 练习</button><button id="vocabCsv">Export</button>`;
+    $('#quizBtn').onclick = openQuiz;
+    $('#vocabCsv').onclick = () => download('vocab.csv', '﻿English,Chinese,Added\n' + S.vocab.map(v => [v.en, v.zh, new Date(v.ts).toISOString().slice(0, 10)].map(x => '"' + String(x || '').replace(/"/g, '""') + '"').join(',')).join('\n'), 'text/csv');
+  }
+}
+function renderTimeline() {
+  const T = $('#timeline'), c = conv();
+  const msgs = c.messages.filter(m => !query || [m.text, m.tr, m.fix].some(x => x && x.toLowerCase().includes(query.toLowerCase())));
+  if (!c.messages.length) { T.innerHTML = `<div class="empty"><div class="empty-cats" aria-hidden="true"><img src="img/fawn-lie.png" alt=""><img src="img/lilac-sit.png" alt=""></div><b>Start talking!</b> 开始聊天吧<br>Pick who is speaking below, type in English or 中文, press Enter.<br>选择说话人，用英文或中文输入，按回车发送。<br>Tip: ${esc(S.settings.nameA)}, try English first — use <b>中→EN</b> when you get stuck.<br>小贴士：先尽量用英文写，卡住了再点 <b>中→EN</b>。</div>`; return; }
+  if (!msgs.length) { T.innerHTML = `<div class="empty"><img class="empty-cat" src="img/fawn-crouch.png" alt="">No matches for “${esc(query)}”</div>`; return; }
+  let html = '', lastDay = '', lastTs = 0;
+  for (const m of msgs) {
+    const d = new Date(m.ts).toDateString();
+    if (d !== lastDay) { html += `<div class="day"><span>${dayLabel(m.ts)}</span></div>`; lastDay = d; }
+    else if (m.ts - lastTs > 30 * 60e3) html += `<div class="gap">· ${Math.round((m.ts - lastTs) / 60e3)} min later ·</div>`;
+    lastTs = m.ts; html += msgHTML(m);
+  }
+  T.innerHTML = html; if (!query) T.scrollTop = T.scrollHeight;
+}
+// ----- markup: marks are {id,start,end,type,fix?,note?} ranges over m.text -----
+// types: u = underline, red = red-pen correction (strike + fix), hl = highlight, good = nice phrase, note = comment
+const MARK_LABEL = { u: 'Underline 下划线', red: 'Correction 批改', hl: 'Highlight 高亮', good: 'Nice! 好句', note: 'Comment 批注' };
+let editingId = null;
+function marksHTML(m) {
+  const text = m.text, marks = (m.marks || []).filter(k => k.start < k.end && k.end <= text.length);
+  if (!marks.length) return highlight(text, query);
+  const cuts = [...new Set([0, text.length, ...marks.flatMap(k => [k.start, k.end])])].sort((a, b) => a - b);
+  const noteNo = noteNumbers(m);
+  let out = '';
+  for (let i = 0; i < cuts.length - 1; i++) {
+    const a = cuts[i], b = cuts[i + 1], on = marks.filter(k => k.start <= a && k.end >= b);
+    let seg = highlight(text.slice(a, b), query);
+    if (on.length) { const top = on[on.length - 1];
+      seg = `<span class="mk ${on.map(k => 'mk-' + k.type).join(' ')}" data-mk="${top.id}" title="${esc(on.map(k => MARK_LABEL[k.type] + (k.note ? ': ' + k.note : '')).join(' · '))}">${seg}</span>`; }
+    for (const k of marks.filter(k => k.end === b)) {
+      if (k.type === 'red' && k.fix) seg += `<span class="mk-ins" data-x="1" data-mk="${k.id}">${esc(k.fix)}</span>`;
+      if (noteNo.has(k.id)) seg += `<sup class="mk-no" data-x="1" data-mk="${k.id}">${noteNo.get(k.id)}</sup>`;
+    }
+    out += seg;
+  }
+  return out;
+}
+const notedMarks = m => (m.marks || []).filter(k => k.note && k.end <= m.text.length).sort((a, b) => a.start - b.start);
+// only hand-written comments get a number in the text; automatic grammar notes are listed under "Why?"
+function noteNumbers(m) { return new Map(notedMarks(m).filter(k => k.by !== 'auto').map((k, i) => [k.id, i + 1])); }
+function notesList(m) {
+  const ns = notedMarks(m); if (!ns.length) return '';
+  const head = k => `<b>“${esc(m.text.slice(k.start, k.end).trim() || '␣')}”</b>${k.fix !== undefined ? ` → <b>${esc(k.fix.trim() || '(delete)')}</b>` : ''}`;
+  const li = k => `<li>${head(k)} ${esc(k.note)}</li>`;
+  const mine = ns.filter(k => k.by !== 'auto'), auto = ns.filter(k => k.by === 'auto');
+  const groups = new Map(); // same correction + same explanation → one line with ×N
+  for (const k of auto) { const g = head(k) + '|' + k.note; groups.set(g, [...(groups.get(g) || []), k]); }
+  const autoLis = [...groups.values()].map(ks => `<li>${head(ks[0])}${ks.length > 1 ? ` <b>×${ks.length}</b>` : ''} ${esc(ks[0].note)}</li>`).join('');
+  return (mine.length ? `<ol class="mk-notes">${mine.map(li).join('')}</ol>` : '') +
+    (auto.length ? `<details class="mk-why" ${auto.length <= 2 ? 'open' : ''}><summary>✍️ Why? 为什么这样改（${auto.length}）</summary><ul class="mk-notes">${autoLis}</ul></details>` : '');
+}
+// Character offset of (node, off) inside .orig, ignoring inserted correction/number elements.
+function textOffset(root, node, off) {
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT); let n, sum = 0;
+  while ((n = w.nextNode())) {
+    const extra = n.parentElement.closest('[data-x]');
+    if (n === node) return extra ? sum : sum + off;
+    if (!extra) sum += n.length;
+  }
+  if (node.nodeType === 1) { // selection boundary on an element: count text before its child #off
+    const r = document.createRange(); r.setStart(root, 0); r.setEnd(node, off);
+    const frag = r.cloneContents(); frag.querySelectorAll('[data-x]').forEach(e => e.remove()); return frag.textContent.length;
+  }
+  return sum;
+}
+// Keep marks attached to the same words after the text is edited.
+function remapMarks(m, oldText) {
+  m.marks = (m.marks || []).map(k => { const snip = oldText.slice(k.start, k.end); let i = m.text.indexOf(snip);
+    if (i < 0) return null; const near = m.text.indexOf(snip, Math.max(0, k.start - 20)); if (near >= 0) i = near;
+    return { ...k, start: i, end: i + snip.length }; }).filter(Boolean);
+}
+function msgHTML(m) {
+  const toLang = m.lang === 'zh' ? 'en' : 'zh';
+  let tr;
+  if (m.tr === undefined) tr = `<div class="tr"><span class="lab">${toLang === 'en' ? 'English' : '中文'}</span><span class="txt">translating…</span></div>`;
+  else if (m.tr === null) tr = `<div class="tr err"><span class="lab">!</span>Translation failed. <button class="icon" data-act="retry">↻ Retry</button> <a href="https://translate.google.com/?sl=${m.lang === 'zh' ? 'zh-CN' : 'en'}&tl=${toLang === 'zh' ? 'zh-CN' : 'en'}&text=${encodeURIComponent(m.text)}&op=translate" target="_blank" rel="noopener">Open Google Translate</a></div>`;
+  else if (m.tr === '') tr = '';
+  else { const hide = toLang === 'zh' && S.settings.hideZh && !m.revealed;
+    tr = `<div class="tr ${toLang} ${hide ? 'hidden' : ''}" ${hide ? 'data-act="reveal" title="Tap to show 点击显示"' : ''}><span class="lab">${toLang === 'en' ? 'English' : '中文'}</span><span class="txt">${highlight(m.tr, query)}</span></div>`; }
+  const corrected = m.checking ? `<div class="fix" style="opacity:.7">✍️ checking grammar… 正在检查语法${S.settings.gEngine === 'local' ? '（Qwen3 4B 本地模型，约 20 秒）' : ''}</div>`
+    : m.corrected ? `<div class="fix"><span class="lab">✔ Corrected · 改正后：</span>${byTag(m)} ${highlight(m.corrected, query)} <button class="icon" data-act="saycorr" title="Listen">🔊</button></div>`
+    : m.checked && !(m.marks || []).some(k => k.by === 'auto') ? `<div class="fix" style="font-size:.85em">✔ Grammar OK · 语法没问题</div>` : '';
+  // natural version identical to the corrected one: just say so instead of repeating it
+  const sameAsFix = m.ai && (m.ai.natural || '').trim() === (m.corrected || m.text || '').trim();
+  const nm = m.ai && !sameAsFix && m.ai.natMarks || [];
+  const ai = m.ai && !m.checking && sameAsFix ? `<div class="ai">${m.ai.scene ? `<div class="fb scene">🎬 ${esc(m.ai.scene)}</div>` : ''}<span class="lab">🤖 ✔ This works here · 这个场景这样说就很自然</span>${byTag(m)}${m.ai.feedback ? `<div class="fb">💡 ${esc(m.ai.feedback)}</div>` : ''}</div>`
+    : m.ai && !m.checking ? `<div class="ai">${m.ai.scene ? `<div class="fb scene">🎬 ${esc(m.ai.scene)}</div>` : ''}
+      ${nm.length ? `<div class="pen">${redPenHTML(m.text, nm)}</div>` : ''}
+      <span class="lab">🤖 ${m.ai.scene ? 'This moment · 这个场景这样说' : 'Native way · 地道说法'}：</span> ${highlight(m.ai.natural, query)} <button class="icon" data-act="sayai" title="Listen">🔊</button>${byTag(m)}
+      ${nm.length || (m.ai.natUnplaced || []).length ? `<details class="mk-why" ${nm.length <= 3 ? 'open' : ''}><summary>Why it sounds Chinese-style 为什么不地道（${nm.length + (m.ai.natUnplaced || []).length}）</summary><ul class="mk-notes">${
+        nm.map(k => `<li><b>“${esc(m.text.slice(k.start, k.end))}”</b> → <b>${esc(k.fix || '(delete)')}</b> ${esc(k.note)}</li>`).join('') +
+        (m.ai.natUnplaced || []).map(e => `<li><b>“${esc(e.original)}”</b> → <b>${esc(e.fix)}</b> ${esc(e.why_en)}${e.why_zh ? ' · ' + esc(e.why_zh) : ''}</li>`).join('')}</ul></details>` : ''}
+      ${m.ai.feedback ? `<div class="fb">💡 ${esc(m.ai.feedback)}</div>` : ''}
+      ${(m.ai.unplaced || []).map(e => `<div class="fb">• “${esc(e.original)}” → <b>${esc(e.fix)}</b> ${esc(e.why_zh || e.why_en)}</div>`).join('')}</div>` : '';
+  const fix = corrected + ai + (!m.fix ? '' : `<div class="fix"><span class="lab">✔ More natural · 更地道：</span> ${highlight(m.fix, query)} <button class="icon" data-act="sayfix">🔊</button>${m.fixZh ? `<div style="color:var(--muted);font-size:.85em">${esc(m.fixZh)}</div>` : ''}</div>`);
+  const note = m.note ? `<div class="note">💬 ${esc(m.note)}</div>` : '';
+  const enText = m.lang === 'en' ? m.text : (m.tr || '');
+  const edited = m.edited ? `<span class="edited" title="Original 原文: ${esc(m.history?.[0]?.text || '')}">✏️ edited 已修改</span>` : '';
+  const body = editingId === m.id
+    ? `<div class="edit-box"><textarea class="edit-ta" rows="3">${esc(m.text)}</textarea><div class="edit-acts"><span class="muted-s">Enter = save · Esc = cancel</span><button type="button" data-act="editCancel">Cancel 取消</button><button type="button" class="primary" data-act="editSave">Save 保存</button></div></div>`
+    : `<div class="orig">${marksHTML(m)}</div>${notesList(m)}`;
+  return `<div class="msg ${m.speaker}" data-id="${m.id}"><div class="avatar cat" title="${esc(nameOf(m.speaker))}"><img src="img/face-${m.speaker === 'A' ? 'a' : 'b'}.png" alt="${esc(nameOf(m.speaker).slice(0, 1).toUpperCase())}"></div>
+  <div class="bubble"><div class="meta"><b>${esc(nameOf(m.speaker))}</b><span title="${timeTip(m.ts, m.speaker)}">${timeLabel(m.ts, m.speaker)}</span><span>${m.lang === 'zh' ? '中文' : 'EN'}</span>${edited}</div>
+  ${body}${tr}${fix}${note}
+  <div class="acts">
+    <button class="icon" data-act="edit" title="Edit / fix typos 修改（改错字）">✏️ Edit</button>
+    ${enText ? `<button class="icon" data-act="say" title="Listen in English 听英文">🔊 EN</button>` : ''}
+    <button class="icon" data-act="sayzh" title="听中文 Listen in Chinese">🔊 中</button>
+    <button class="icon" data-act="star" title="Save to vocab (select words first) 收藏生词（可先选中词语）">⭐</button>
+    ${/[A-Za-z]{2}/.test(m.text) ? `<button class="icon" data-act="grammar" title="Check spelling & grammar 检查拼写和语法">✍️ Grammar 语法</button>` : ''}
+    ${m.lang === 'en' ? `<button class="icon" data-act="fix" title="Suggest more natural English 给出更地道的说法">✎ Better English</button>` : ''}
+    <button class="icon" data-act="note" title="Add a note 加备注">💬</button>
+    <button class="icon" data-act="copy" title="Copy">📋</button>
+    <button class="icon" data-act="del" title="Delete">🗑</button>
+  </div></div></div>`;
+}
+function renderComposer() {
+  const sp = S.speaker;
+  $('#who').innerHTML = '<div class="seg" role="group" aria-label="Who is speaking">' + ['A', 'B'].map(k => `<button type="button" class="${k} ${sp === k ? 'on' : ''}" data-sp="${k}" aria-pressed="${sp === k}"><img class="face" src="img/face-${k === 'A' ? 'a' : 'b'}.png" alt="">${esc(nameOf(k))}<span class="tag">${k === 'A' ? '中/EN' : 'EN'}</span></button>`).join('') + '</div>' +
+    `<span class="hint">Speaking now: <b>${esc(nameOf(sp))}</b> · Alt+S to switch 切换</span>`;
+  $('#phrases').innerHTML = PHRASES[sp].map(([en, zh]) => `<button data-ph="${esc(en)}">${esc(en)}<small>${esc(zh)}</small></button>`).join('');
+  $('#composer').classList.toggle('speakB', sp === 'B');
+  $('#helpBtn').style.display = $('#checkBtn').style.display = sp === 'A' ? '' : 'none';
+  $('#zhBtn').style.display = sp === 'B' ? '' : 'none';
+  setMicLang(sp === 'B' ? 'en-US' : (S.micLangA || 'en-US'));
+  $('#draft').placeholder = sp === 'A' ? 'Try English first… 先试着用英文写（卡住了点 中→EN）' : 'Type in English… (Enter to send)';
+}
+function rerenderMsg(m) { const el = document.querySelector(`.msg[data-id="${m.id}"]`); if (el) el.outerHTML = msgHTML(m); else renderTimeline(); }
+
+// ---------- actions ----------
+async function translateMsg(m) {
+  m.tr = undefined; rerenderMsg(m);
+  const out = await translate(m.text, m.lang, m.lang === 'zh' ? 'en' : 'zh');
+  m.tr = S.settings.engine === 'off' ? '' : out; save(); rerenderMsg(m); renderHeader();
+}
+function send() {
+  const text = $('#draft').value.trim(); if (!text) return;
+  const m = { id: uid(), ts: Date.now(), speaker: S.speaker, text, lang: isZh(text) ? 'zh' : 'en' };
+  conv().messages.push(m);
+  $('#draft').value = ''; autoGrow(); closePreview();
+  if (S.settings.autoSwitch) S.speaker = S.speaker === 'A' ? 'B' : 'A';
+  save(); query = ''; $('#search').value = ''; renderTimeline(); renderComposer(); renderSide(); renderHeader();
+  translateMsg(m); $('#draft').focus();
+  if (m.speaker === 'A' && S.settings.autoGrammar && /[A-Za-z]{2}/.test(m.text) && m.lang === 'en') checkMessage(m, true);
+}
+async function helpSayIt() {
+  const text = $('#draft').value.trim(); if (!text) return toast('Type something in Chinese first 先输入中文');
+  if (!isZh(text)) { const zh = await translate(text, 'en', 'zh'); return zh ? showPreview('中文: ' + zh, null) : toast('Translation failed'); }
+  $('#previewTxt').textContent = 'translating…'; $('#preview').classList.add('show');
+  const en = await translate(text, 'zh', 'en');
+  en ? showPreview(en, en) : ($('#previewTxt').textContent = 'Translation failed — check the engine in ⚙️ Settings');
+}
+// English speaker: say the draft in natural Chinese (free AI on this PC gives pinyin + a tip; otherwise the translator)
+// words the pinyin dictionary reads wrong in everyday chat (觉 = jiào when it means sleep)
+try { window.pinyinPro && pinyinPro.customPinyin({ '好觉': 'hǎo jiào', '午觉': 'wǔ jiào', '睡个觉': 'shuì gè jiào', '一觉': 'yí jiào' }); } catch {}
+const py = zh => { try { return window.pinyinPro ? pinyinPro.pinyin(zh) : ''; } catch { return ''; } }; // dictionary pinyin (the small AI gets tones wrong)
+async function sayInChinese() {
+  const text = $('#draft').value.trim(); if (!text) return toast('Type your message in English first');
+  if (isZh(text)) return toast('That is already Chinese 已经是中文了');
+  $('#previewTxt').textContent = S.settings.gEngine === 'local' ? 'Thinking… (Qwen3 4B, ~10 s) 正在想中文说法' : 'translating…'; $('#preview').classList.add('show');
+  if (S.settings.gEngine === 'local' && serverOK) {
+    try { const r = await fetch('/api/local/zh', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text, context: chatContext(null) }) });
+      const j = await r.json(); if (!r.ok) throw new Error(j.error);
+      return showPreview(`${j.zh}\n${py(j.zh)}\n💡 ${j.tip_en}`, j.zh, 'zh');
+    } catch (e) { toast('Qwen3 4B: ' + e.message + ' — using the translator'); }
+  }
+  const zh = await translate(text, 'en', 'zh');
+  zh ? showPreview(zh + '\n' + py(zh), zh, 'zh') : ($('#previewTxt').textContent = 'Translation failed — check the engine in ⚙️ Settings');
+}
+let previewEn = null, previewLang = 'en';
+function showPreview(txt, en, lang) { previewEn = en; previewLang = lang || 'en'; $('#previewFlag').textContent = previewLang === 'zh' ? '🇨🇳' : '🇬🇧'; $('#previewTxt').textContent = txt; $('#previewUse').style.display = en ? '' : 'none'; $('#previewSpeak').style.display = en ? '' : 'none'; $('#preview').classList.add('show'); }
+function closePreview() { $('#preview').classList.remove('show'); previewEn = null; }
+
+async function onMsgAction(act, m, el) {
+  const enText = m.lang === 'en' ? m.text : m.tr;
+  const zhText = m.lang === 'zh' ? m.text : m.tr;
+  switch (act) {
+    case 'edit': editingId = m.id; rerenderMsg(m); { const ta = document.querySelector(`.msg[data-id="${m.id}"] .edit-ta`); ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); ta.style.height = ta.scrollHeight + 4 + 'px'; } break;
+    case 'editCancel': editingId = null; rerenderMsg(m); break;
+    case 'editSave': {
+      const v = el.querySelector('.edit-ta').value.trim(); editingId = null;
+      if (!v || v === m.text) { rerenderMsg(m); break; }
+      (m.history ||= []).push({ text: m.text, ts: Date.now() });
+      const old = m.text; m.text = v; m.edited = Date.now(); m.lang = isZh(v) ? 'zh' : 'en'; m.marks = (m.marks || []).filter(k => k.by !== 'auto'); remapMarks(m, old);
+      const wasChecked = m.checked; delete m.corrected; delete m.checked; delete m.ai;
+      save(); translateMsg(m); toast('Saved 已修改');
+      if (m.lang === 'en' && (wasChecked || (m.speaker === 'A' && S.settings.autoGrammar))) checkMessage(m, true);
+      break; }
+    case 'grammar': checkMessage(m); break;
+    case 'saycorr': speak(m.corrected, 'en'); break;
+    case 'sayai': speak(m.ai.natural, 'en'); break;
+    case 'reveal': m.revealed = true; save(); rerenderMsg(m); break;
+    case 'retry': translateMsg(m); break;
+    case 'say': speak(enText, 'en'); break;
+    case 'sayzh': if (zhText) speak(zhText, 'zh'); break;
+    case 'sayfix': speak(m.fix, 'en'); break;
+    case 'copy': navigator.clipboard?.writeText(m.text + (m.tr ? '\n' + m.tr : '')); toast('Copied 已复制'); break;
+    case 'del': if (confirm('Delete this message? 删除这条消息？')) { const c = conv(); c.messages = c.messages.filter(x => x !== m); markDeleted(m.id); save(); renderTimeline(); renderSide(); renderHeader(); } break;
+    case 'note': { const n = prompt('Note for this message 备注:', m.note || ''); if (n !== null) { m.note = n.trim(); save(); rerenderMsg(m); } break; }
+    case 'fix': {
+      const f = prompt('More natural English for:\n“' + m.text + '”\n\nType the better version 输入更地道的说法:', m.fix || m.text);
+      if (f === null) break; m.fix = f.trim(); m.fixZh = ''; save(); rerenderMsg(m);
+      if (m.fix) { const z = await translate(m.fix, 'en', 'zh'); if (z) { m.fixZh = z; save(); rerenderMsg(m); } }
+      break; }
+    case 'star': {
+      const sel = String(getSelection()).trim();
+      let en, zh;
+      if (sel && el.contains(getSelection().anchorNode)) {
+        if (isZh(sel)) { zh = sel; en = await translate(sel, 'zh', 'en'); } else { en = sel; zh = await translate(sel, 'en', 'zh'); }
+      } else { en = enText; zh = zhText; }
+      if (!en) return toast('Nothing to save');
+      if (S.vocab.some(v => v.en.toLowerCase() === en.toLowerCase())) return toast('Already saved 已收藏');
+      S.vocab.push({ id: uid(), ts: Date.now(), en, zh: zh || '', from: m.id }); save(); toast('⭐ Saved: ' + en.slice(0, 40)); renderSide(); break; }
+  }
+}
+
+// ---------- quiz ----------
+let card = null, flipped = false;
+function openQuiz() { nextCard(); $('#quizDlg').showModal(); }
+function nextCard() {
+  const pool = S.vocab; if (!pool.length) return;
+  let c; do { c = pool[Math.floor(Math.random() * pool.length)]; } while (pool.length > 1 && c === card);
+  card = c; flipped = false;
+  $('#card').innerHTML = `<div>${esc(c.zh || c.en)}</div><div class="ans" style="visibility:hidden">${esc(c.en)}</div>`;
+}
+$('#cardFlip').onclick = () => { flipped = true; $('#card .ans').style.visibility = 'visible'; speak(card.en, 'en'); };
+$('#cardNext').onclick = nextCard;
+$('#cardSpeak').onclick = () => card && speak(card.en, 'en');
+
+// ---------- export / import ----------
+function download(name, content, type = 'text/plain') { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([content], { type })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); }
+$('#exportMd').onclick = () => {
+  const c = conv(); let md = `# ${c.title}\n\n`; let last = '';
+  for (const m of c.messages) { const d = dayLabel(m.ts); if (d !== last) { md += `\n## ${d}\n\n`; last = d; }
+    const mk = (m.marks || []).map(k => `> ${{ u: '__', red: '✗', hl: '🖍', good: '👍', note: '💬' }[k.type]} “${m.text.slice(k.start, k.end)}”${k.fix ? ' → ' + k.fix : ''}${k.note ? ': ' + k.note : ''}  \n`).join('');
+    md += `**${nameOf(m.speaker)}** _${timeLabel(m.ts, m.speaker)}_${m.edited ? ' (edited)' : ''}  \n${m.text}  \n` + (m.tr ? `> ${m.tr}  \n` : '') + mk + (m.fix ? `> ✔ Better: ${m.fix}  \n` : '') + (m.note ? `> 💬 ${m.note}  \n` : '') + '\n'; }
+  download(c.title.replace(/[\\/:*?"<>|]/g, '-') + '.md', md, 'text/markdown');
+};
+$('#exportJson').onclick = () => download('bilingual-board-backup-' + new Date().toISOString().slice(0, 10) + '.json', JSON.stringify(S, null, 1), 'application/json');
+$('#importJson').onclick = () => $('#importFile').click();
+$('#importFile').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try { const j = JSON.parse(await f.text()); if (!Array.isArray(j.conversations)) throw 0;
+    if (!confirm('Replace ALL current chats with this backup? 用备份替换当前全部数据？')) return;
+    S = j; S.settings = Object.assign(freshState().settings, S.settings); save(); renderAll(); toast('Restored 已恢复'); }
+  catch { toast('Not a valid backup file'); } e.target.value = '';
+};
+
+// ---------- wiring ----------
+// Input box height: user's own size (drag the corner or ⤢) is the minimum; it grows with long text up to 70% of the screen.
+function baseH() { return S.settings.draftH || 56; }
+function autoGrow() {
+  const t = $('#draft'); const max = innerHeight * 0.7;
+  t.style.height = baseH() + 'px';
+  if (t.scrollHeight > t.clientHeight) t.style.height = Math.min(t.scrollHeight + 2, max) + 'px';
+}
+$('#draft').addEventListener('input', autoGrow);
+// Drag the grip bar above the composer: up = taller input box, down = shorter.
+let drag = null;
+const setH = h => { S.settings.draftH = Math.round(Math.max(56, Math.min(h, innerHeight * 0.7))); autoGrow(); updateExpandBtn(); };
+$('#grip').addEventListener('pointerdown', e => { drag = { y: e.clientY, h: $('#draft').offsetHeight }; $('#grip').setPointerCapture(e.pointerId); $('#grip').classList.add('on'); e.preventDefault(); });
+$('#grip').addEventListener('pointermove', e => { if (drag) setH(drag.h + (drag.y - e.clientY)); });
+$('#grip').addEventListener('pointerup', () => { if (!drag) return; drag = null; $('#grip').classList.remove('on'); save(); });
+$('#grip').addEventListener('dblclick', () => { setH(baseH() > 120 ? 56 : innerHeight * 0.4); save(); });
+function updateExpandBtn() { $('#expandBtn').textContent = baseH() > 120 ? '⤡ Smaller 缩小' : '⤢ Bigger 放大'; }
+$('#expandBtn').onclick = () => { setH(baseH() > 120 ? 56 : innerHeight * 0.4); save(); $('#draft').focus(); };
+updateExpandBtn();
+autoGrow();
+$('#draft').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } });
+document.addEventListener('keydown', e => { if (e.altKey && (e.key === 's' || e.key === 'S')) { e.preventDefault(); S.speaker = S.speaker === 'A' ? 'B' : 'A'; save(); renderComposer(); } });
+$('#sendBtn').onclick = send;
+$('#helpBtn').onclick = helpSayIt;
+$('#checkBtn').onclick = checkDraft;
+$('#micBtn').onclick = toggleMic;
+$('#micLang').onclick = e => { const b = e.target.closest('[data-ml]'); if (!b) return; setMicLang(b.dataset.ml); if (S.speaker === 'A') { S.micLangA = micLang; save(); } };
+$('#previewUse').onclick = () => { if (previewEn) { $('#draft').value = previewEn; autoGrow(); $('#draft').focus(); } closePreview(); };
+$('#previewSpeak').onclick = () => previewEn && speak(previewEn, previewLang);
+$('#zhBtn').onclick = sayInChinese;
+const engMenuOpen = open => { $('#engineMenu').classList.toggle('show', open); $('#engineBtn').setAttribute('aria-expanded', open); };
+$('#engineBtn').onclick = e => { e.stopPropagation(); engMenuOpen(!$('#engineMenu').classList.contains('show')); };
+$('#engineMenu').onclick = e => { const b = e.target.closest('[data-eng]'); if (!b) return; e.stopPropagation();
+  S.settings.gEngine = b.dataset.eng; save(); renderCheckBtn(); engMenuOpen(false); toast('Checker 批改引擎: ' + ENGINES.find(x => x.id === b.dataset.eng).name); };
+document.addEventListener('click', () => engMenuOpen(false));
+document.addEventListener('keydown', e => { if (e.key === 'Escape') engMenuOpen(false); });
+$('#previewClose').onclick = closePreview;
+$('#who').onclick = e => { const b = e.target.closest('[data-sp]'); if (b) { S.speaker = b.dataset.sp; save(); renderComposer(); $('#draft').focus(); } };
+$('#phrases').onclick = e => { const b = e.target.closest('[data-ph]'); if (!b) return; const t = $('#draft'); t.value = (t.value ? t.value + ' ' : '') + b.dataset.ph; autoGrow(); t.focus(); const i = t.value.indexOf('___'); if (i >= 0) t.setSelectionRange(i, i + 3); };
+$('#timeline').onclick = e => {
+  const msgEl = e.target.closest('.msg'); if (!msgEl) return; const m = conv().messages.find(x => x.id === msgEl.dataset.id); if (!m) return;
+  const mk = e.target.closest('[data-mk]');
+  if (mk && !String(getSelection()).trim()) return showMarkMenu(m, mk.dataset.mk, mk);
+  const b = e.target.closest('[data-act]'); if (b) onMsgAction(b.dataset.act, m, msgEl);
+};
+$('#timeline').addEventListener('keydown', e => {
+  if (!e.target.classList.contains('edit-ta')) return; const el = e.target.closest('.msg'); const m = conv().messages.find(x => x.id === el.dataset.id);
+  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); onMsgAction('editSave', m, el); }
+  if (e.key === 'Escape') onMsgAction('editCancel', m, el);
+});
+
+// ----- floating markup toolbar: select words in a message, pick a mark -----
+const tool = $('#mtool'); let selCtx = null;
+function placeTool(rect) {
+  tool.classList.add('show'); const w = tool.offsetWidth, h = tool.offsetHeight;
+  let x = rect.left + rect.width / 2 - w / 2, y = rect.top - h - 8; if (y < 8) y = rect.bottom + 8;
+  tool.style.left = Math.max(8, Math.min(x, innerWidth - w - 8)) + 'px'; tool.style.top = y + 'px';
+}
+function hideTool() { tool.classList.remove('show'); selCtx = null; }
+function showSelTool() {
+  const sel = getSelection(); if (!sel.rangeCount || sel.isCollapsed) return;
+  const r = sel.getRangeAt(0), orig = r.commonAncestorContainer.parentElement?.closest('.orig') || (r.commonAncestorContainer.closest?.('.orig'));
+  if (!orig) return;
+  const el = orig.closest('.msg'), m = conv().messages.find(x => x.id === el.dataset.id); if (!m) return;
+  let start = textOffset(orig, r.startContainer, r.startOffset), end = textOffset(orig, r.endContainer, r.endOffset);
+  while (start < end && /\s/.test(m.text[start])) start++; while (end > start && /\s/.test(m.text[end - 1])) end--;
+  if (end <= start) return;
+  selCtx = { m, start, end };
+  tool.innerHTML = `<button data-mt="u"><span class="sw" style="border-bottom:3px solid #2563eb"></span>Underline 下划线</button>
+    <button data-mt="red"><span class="sw" style="background:#dc2626"></span>Correct 红笔批改</button>
+    <button data-mt="hl"><span class="sw" style="background:#fde68a"></span>Highlight 高亮</button>
+    <button data-mt="good"><span class="sw" style="background:#86efac"></span>Nice 好句</button>
+    <button data-mt="note">💬 Comment 批注</button><button data-mt="star">⭐</button>`;
+  placeTool(r.getBoundingClientRect());
+}
+function showMarkMenu(m, id, anchor) {
+  const k = (m.marks || []).find(k => k.id === id); if (!k) return;
+  selCtx = { m, edit: k };
+  tool.innerHTML = `<button disabled style="opacity:.7">${esc(MARK_LABEL[k.type])}</button>` +
+    (k.type === 'red' ? `<button data-mt="editfix">✏️ Change fix 改批改</button>` : '') +
+    `<button data-mt="editnote">💬 ${k.note ? 'Edit comment' : 'Add comment'}</button><button data-mt="speak">🔊</button><button data-mt="remove">✕ Remove 删除</button>`;
+  placeTool(anchor.getBoundingClientRect());
+}
+let selTimer;
+document.addEventListener('selectionchange', () => { clearTimeout(selTimer); selTimer = setTimeout(() => { if (!getSelection().isCollapsed) showSelTool(); }, 250); });
+document.addEventListener('pointerdown', e => { if (!tool.contains(e.target) && !e.target.closest('[data-mk]')) hideTool(); });
+$('#timeline').addEventListener('scroll', hideTool);
+tool.addEventListener('pointerdown', e => e.preventDefault()); // keep the text selection while clicking
+tool.onclick = async e => {
+  const b = e.target.closest('[data-mt]'); if (!b || !selCtx) return; const t = b.dataset.mt, { m } = selCtx;
+  if (selCtx.edit) { const k = selCtx.edit;
+    if (t === 'remove') m.marks = m.marks.filter(x => x !== k);
+    if (t === 'speak') speak(k.fix || m.text.slice(k.start, k.end), isZh(m.text.slice(k.start, k.end)) ? 'zh' : 'en');
+    if (t === 'editfix') { const f = prompt('Correct version 正确写法:', k.fix || ''); if (f === null) return; k.fix = f.trim(); }
+    if (t === 'editnote') { const n = prompt('Comment 批注:', k.note || ''); if (n === null) return; k.note = n.trim(); }
+  } else {
+    const { start, end } = selCtx, snip = m.text.slice(start, end);
+    if (t === 'star') { hideTool(); const zh = isZh(snip), other = await translate(snip, zh ? 'zh' : 'en', zh ? 'en' : 'zh');
+      const en = zh ? other : snip; if (!en) return toast('Translation failed');
+      S.vocab.push({ id: uid(), ts: Date.now(), en, zh: zh ? snip : (other || ''), from: m.id }); save(); renderSide(); return toast('⭐ Saved: ' + en.slice(0, 40)); }
+    const k = { id: uid(), start, end, type: t, ts: Date.now(), by: S.speaker };
+    if (t === 'red') { const f = prompt(`Correct “${snip}” to 改成:`, snip); if (f === null) return; k.fix = f.trim(); }
+    if (t === 'note') { const n = prompt(`Comment on “${snip}” 批注:`); if (!n) return; k.note = n.trim(); }
+    (m.marks ||= []).push(k);
+  }
+  getSelection().removeAllRanges(); hideTool(); save(); rerenderMsg(m);
+};
+$('#tabChats').onclick = () => { sideTab = 'chats'; renderSide(); };
+$('#tabVocab').onclick = () => { sideTab = 'vocab'; renderSide(); };
+$('#sideList').onclick = e => {
+  const del = e.target.closest('[data-del]'), vdel = e.target.closest('[data-vdel]'), say = e.target.closest('[data-say]'), cv = e.target.closest('.conv');
+  if (del) { e.stopPropagation(); const c = S.conversations.find(c => c.id === del.dataset.del);
+    if (confirm(`Delete chat “${c.title}” (${c.messages.length} messages)? 删除整个对话？`)) { S.conversations = S.conversations.filter(x => x !== c); markDeleted(c.id); if (!S.conversations.length) S.conversations.push(newConv()); if (S.activeId === c.id) S.activeId = S.conversations[0].id; save(); renderAll(); } return; }
+  if (vdel) { S.vocab = S.vocab.filter(v => v.id !== vdel.dataset.vdel); markDeleted(vdel.dataset.vdel); save(); renderSide(); return; }
+  if (say) { const v = S.vocab.find(v => v.id === say.dataset.say); if (v) speak(v.en, 'en'); return; }
+  if (cv) { S.activeId = cv.dataset.id; query = ''; $('#search').value = ''; save(); renderAll(); $('#side').classList.remove('open'); }
+};
+$('#title').onclick = () => { const t = prompt('Rename chat 重命名:', conv().title); if (t && t.trim()) { conv().title = t.trim(); save(); renderHeader(); renderSide(); } };
+$('#search').oninput = e => { query = e.target.value.trim(); renderTimeline(); };
+$('#menuBtn').onclick = () => $('#side').classList.toggle('open');
+$('#settingsBtn').onclick = () => {
+  const s = S.settings; $('#sNameA').value = s.nameA; $('#sNameB').value = s.nameB; $('#sCityB').value = s.cityB || 'Rijswijk'; $('#sHide').checked = s.hideZh; $('#sSwitch').checked = s.autoSwitch; $('#sGrammar').checked = s.autoGrammar;
+  $('#sGEngine').value = s.gEngine; $('#sModel').value = s.aiModel; $('#sKey').value = ''; claudeStatus();
+  $('#sEngine').value = s.engine; $('#sRate').value = s.rate; $('#sScale').value = s.scale; engineStatus(); $('#settingsDlg').showModal();
+};
+$('#settingsDlg').addEventListener('input', () => {
+  const s = S.settings; s.nameA = $('#sNameA').value.trim() || 'Me'; s.nameB = $('#sNameB').value.trim() || 'Partner'; s.cityB = $('#sCityB').value.trim() || 'Rijswijk'; s.hideZh = $('#sHide').checked;
+  s.autoSwitch = $('#sSwitch').checked; s.autoGrammar = $('#sGrammar').checked; s.gEngine = $('#sGEngine').value; s.aiModel = $('#sModel').value; s.engine = $('#sEngine').value; s.rate = +$('#sRate').value; s.scale = +$('#sScale').value; save(); renderAll();
+});
+speechSynthesis?.addEventListener?.('voiceschanged', () => {});
+
+const pending = new Set();
+async function resumeTranslations() {
+  for (const c of S.conversations) for (const m of c.messages)
+    if (m.tr === undefined && !pending.has(m.id)) { pending.add(m.id); await translateMsg(m); pending.delete(m.id); }
+}
+renderAll(); pullServer().then(resumeTranslations);
+</script>
+</body>
+</html>
