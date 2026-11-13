@@ -76,4 +76,4 @@ Settings for advanced users (environment variables): `PORT` (default 8765), `BOA
 
 ## License
 
-The code is under the MIT license (see `LICENSE`). The cat illustrations in `img/` are not covered by the MIT license.
+Code: [PolyForm Noncommercial 1.0.0](LICENSE). Free for personal and noncommercial use. Commercial use needs written permission from skot-chen. The cat illustrations in `img/` are © skot-chen and not covered by the license.
